@@ -1,42 +1,62 @@
-import React from 'react'
+import React, { useState } from 'react'
 import Papa from 'papaparse'
-import * as XLSX from 'xlsx'
 
 export default function FileUploader({ onDataLoaded }) {
+  const [preview, setPreview] = useState(null)
+  const [error, setError] = useState(null)
+
   const handleFile = (e) => {
     const file = e.target.files[0]
     if (!file) return
 
-    const reader = new FileReader()
-    const ext = file.name.split('.').pop().toLowerCase()
+    Papa.parse(file, {
+      header: true,
+      dynamicTyping: true,
+      complete: (results) => {
+        if (results.errors.length) {
+          setError('Error parsing file')
+          return
+        }
+        const data = results.data.filter(row => Object.keys(row).length > 1)
 
-    reader.onload = (evt) => {
-      if (ext === 'csv') {
-        const parsed = Papa.parse(evt.target.result, { header: true })
-        const data = parsed.data
-        autoDetect(data)
-      } else if (ext === 'xlsx') {
-        const workbook = XLSX.read(evt.target.result, { type: 'binary' })
-        const sheet = workbook.Sheets[workbook.SheetNames[0]]
-        const data = XLSX.utils.sheet_to_json(sheet)
-        autoDetect(data)
+        // Preview first 5 rows
+        setPreview(data.slice(0, 5))
+
+        // Auto detect columns
+        const headers = Object.keys(data[0] || {})
+        let target = headers.find(h => h.toLowerCase().includes('overall'))
+        let group = headers.find(h => h.toLowerCase().includes('group'))
+        let features = headers.filter(h => h !== target && h !== group)
+
+        if (!target) {
+          setError('Could not auto-detect target column. Please rename it to include "Overall".')
+        }
+
+        // Map A-E to 5-1 if needed
+        data.forEach(row => {
+          headers.forEach(h => {
+            if (['A','B','C','D','E'].includes(row[h])) {
+              const map = {A:5,B:4,C:3,D:2,E:1}
+              row[h] = map[row[h]]
+            }
+          })
+        })
+
+        onDataLoaded(data, { target, group, features })
       }
-    }
-
-    if (ext === 'csv') reader.readAsText(file)
-    else reader.readAsBinaryString(file)
-  }
-
-  const autoDetect = (data) => {
-    const columns = Object.keys(data[0])
-    const target = columns.find(c => c.toLowerCase().includes("overall"))
-    const features = columns.filter(c => c !== target && c.toLowerCase() !== "group")
-    onDataLoaded(data, target, features)
+    })
   }
 
   return (
-    <div className="mb-4">
-      <input type="file" accept=".csv, .xlsx" onChange={handleFile} />
+    <div style={{ marginBottom: '1rem' }}>
+      <input type="file" accept=".csv" onChange={handleFile} />
+      {preview && (
+        <div>
+          <h3>Preview (first 5 rows):</h3>
+          <pre>{JSON.stringify(preview, null, 2)}</pre>
+        </div>
+      )}
+      {error && <div style={{ color: 'red' }}>{error}</div>}
     </div>
   )
 }

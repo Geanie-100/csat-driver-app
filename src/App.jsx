@@ -5,17 +5,16 @@ import WhatIfSimulator from './components/WhatIfSimulator'
 
 export default function App() {
   const [data, setData] = useState(null)
-  const [target, setTarget] = useState(null)
-  const [features, setFeatures] = useState([])
+  const [config, setConfig] = useState(null)
 
   return (
-    <div className="p-6 font-sans">
-      <h1 className="text-2xl font-bold mb-4">CSAT Driver Analysis</h1>
-      <FileUploader onDataLoaded={(d, t, f) => { setData(d); setTarget(t); setFeatures(f) }} />
-      {data && (
+    <div style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
+      <h1>📊 CSAT Driver Analysis</h1>
+      <FileUploader onDataLoaded={(d, c) => { setData(d); setConfig(c) }} />
+      {data && config && (
         <>
-          <DriverChart data={data} target={target} features={features} />
-          <WhatIfSimulator data={data} target={target} features={features} />
+          <DriverChart data={data} config={config} />
+          <WhatIfSimulator data={data} config={config} />
         </>
       )}
     </div>

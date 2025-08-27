@@ -1,26 +1,29 @@
 import React from 'react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
-export default function DriverChart({ data, target, features }) {
-  if (!target || features.length === 0) return null
+export default function DriverChart({ data, config }) {
+  if (!config.target || config.features.length === 0) {
+    return <div style={{color:'red'}}>Missing target or features — check your file headers.</div>
+  }
 
-  // naive correlation as proxy for importance
-  const correlations = features.map(f => {
-    const xs = data.map(d => parseFloat(d[f]) || 0)
-    const ys = data.map(d => parseFloat(d[target]) || 0)
-    const xMean = xs.reduce((a,b) => a+b,0)/xs.length
-    const yMean = ys.reduce((a,b) => a+b,0)/ys.length
-    const num = xs.map((x,i) => (x-xMean)*(ys[i]-yMean)).reduce((a,b) => a+b,0)
-    const den = Math.sqrt(xs.map(x => (x-xMean)**2).reduce((a,b) => a+b,0) * ys.map(y => (y-yMean)**2).reduce((a,b) => a+b,0))
-    const corr = den === 0 ? 0 : num/den
-    return { feature: f, importance: Math.abs(corr) }
+  // Simple correlation as proxy for "importance"
+  const correlations = config.features.map(f => {
+    let xs = data.map(d => d[f])
+    let ys = data.map(d => d[config.target])
+    let meanX = xs.reduce((a,b)=>a+b,0)/xs.length
+    let meanY = ys.reduce((a,b)=>a+b,0)/ys.length
+    let num = xs.map((x,i)=>(x-meanX)*(ys[i]-meanY)).reduce((a,b)=>a+b,0)
+    let den = Math.sqrt(xs.map(x=>(x-meanX)**2).reduce((a,b)=>a+b,0)*ys.map(y=>(y-meanY)**2).reduce((a,b)=>a+b,0))
+    let corr = den ? num/den : 0
+    return { feature: f, importance: Math.round(corr*100)/100 }
   })
 
   return (
-    <div className="mb-6">
-      <h2 className="text-xl font-semibold mb-2">Driver Importance</h2>
+    <div style={{ marginTop: '2rem' }}>
+      <h2>Feature Importance (Correlation with {config.target})</h2>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={correlations}>
+          <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="feature" />
           <YAxis />
           <Tooltip />
